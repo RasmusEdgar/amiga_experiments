@@ -1,11 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <proto/intuition.h>
-#include <clib/diskfont_protos.h>
-#include <graphics/text.h>
-#include <graphics/rastport.h>
 #include <clib/graphics_protos.h>
+#include <proto/intuition.h>
 
 struct Wininfo {
   int winnr;
@@ -19,15 +16,25 @@ struct Wininfo {
 struct Miscinfo {
   int winnr;
   int max_chars;
-  int titlelength;
+  int titlepad;
+  int printpad;
 };
+
+// Config section. Modify the following to easily change output "table" 
+static const char hseparator[] = "_";
+static const char vseparator[] = "|";
+// Known number of hardcoded chars in table row output
+static const int numcharstable = 32;
+// Known number of cells in table row output
+static const int numcellsstable = 6;
+// Config section done
 
 int main(void)
 {
   struct Screen *screen;
   struct Wininfo *wininfos;
   struct Miscinfo *miscinfo;
-  int winnr = 0, printer;
+  int printer;
   struct Miscinfo *getmiscinfo(struct Screen *screen);
   struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo);
   int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
@@ -41,12 +48,22 @@ int main(void)
     printf("Failed to lock default pubscreen! Exiting.\n");
     return 1;
   }
+
+  // Get window count and other information needed to print on terminal
   miscinfo = getmiscinfo(screen);
+
+  if (!miscinfo) {
+    printf("Failed to fetch misc. info! Exiting.\n");
+    return 1;
+  }
+
+  // Gather needed info from open windows
   wininfos = getwininfos(screen, miscinfo);
   if (!wininfos) {
     printf("Failed to create window array of structs! Exiting.\n");
     return 1;
   }
+
   // Unlock Pubscreen and Intuitionbase both return nothing
   UnlockPubScreen(0L, screen);
   UnlockIBase(ilock);
@@ -56,16 +73,11 @@ int main(void)
     printf("Failed to print windows! Exiting.\n");
     return 1;
   }
+
   // Clear mem
   free(miscinfo);
   free(wininfos);
 
-  // Nilling wininfos
-  wininfos = NULL;
-  if (wininfos) {
-    printf("Failed free mem from array. Exiting.\n");
-    return 1;
-  }
   // And we are done
   return 0;
 
@@ -73,15 +85,12 @@ int main(void)
 
 struct Miscinfo *getmiscinfo(struct Screen *screen)
 {
-  int winnr = 0;
-  struct Window *window;
-  int max_chars, n;
+  int winnr = 0, max_chars, wswidth, awidth;
   char *text;
+  struct Window *window;
   struct TextExtent te;
-  int awidth;
   struct RastPort *wrport;
   struct TextFont *wfont;
-  struct Screen *wscreen;
   struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
     // Ignore Workbench window, and any backdropped windows.
@@ -91,16 +100,14 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 	wfont = window->IFont;
 	wrport = window->RPort;
 	awidth = window->Width - window->BorderLeft - window->BorderRight;
-	wscreen = window->WScreen;
-	n = wscreen->Width;
-	printf("wscrenw= %d\n", n);
-	text = malloc(n * sizeof(char));
-	memset(text, '-', n - 1);
+	wswidth = window->WScreen->Width;
+	text = malloc(wswidth * sizeof(char));
+	memset(text, '-', wswidth - 1);
 	max_chars =
 	    TextFit(wrport, text, strlen(text), &te, NULL, 1,
 		    awidth, wfont->tf_YSize + 1);
-	miscinfo->titlelength = max_chars - 18;
 	miscinfo->max_chars = max_chars;
+	miscinfo->printpad = (max_chars - numcharstable) / numcellstable;
 	free(text);
       }
       winnr++;
@@ -113,22 +120,39 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
   int a, i;
-  for (a = 0; a < miscinfo->max_chars; a++) {
-    printf("-");
-  }
-  printf("\n");
+  printf("\nOpen windows on Public Screen:\n");
   for (i = 0; i < miscinfo->winnr; i++) {
-    printf("Nr: %d | Title: %.*s | Width: %d | Height: %d | X: %d | Y: %d \n",
-	   wininfos[i].winnr,
-	   miscinfo->titlelength, wininfos[i].wintitle,
-	   wininfos[i].width,
-	   wininfos[i].height, wininfos[i].posx, wininfos[i].posy);
+    for (a = 0; a < miscinfo->max_chars; a++) {
+      printf(hseparator);
+    }
+    printf("\n");
+    if (strlen(wininfos[i].wintitle) <= miscinfo->printpad) {
+       int titlelen = 0, titlediff = 0, titlepad = 0;
+       titlelen = strlen(wininfos[i].wintitle);
+       titlediff = miscinfo->printpad - titlelen;
+       titlepad = titlediff + titlelen; 
+       printf("N: %-*d %s T: %-*s %s W: %-*d %s H: %-*d %s X: %-*d %s Y: %-*d\n",
+	   miscinfo->printpad,wininfos[i].winnr,vseparator,
+	   titlepad,wininfos[i].wintitle,vseparator,
+	   miscinfo->printpad,wininfos[i].width,vseparator,
+	   miscinfo->printpad,wininfos[i].height,vseparator,
+           miscinfo->printpad,wininfos[i].posx,vseparator,
+           miscinfo->printpad,wininfos[i].posy);
+    } else { 
+       printf("N: %-*d %s T: %-.*s %s W: %-*d %s H: %-*d %s X: %-*d %s Y: %-*d\n",
+	   miscinfo->printpad,wininfos[i].winnr,vseparator,
+	   miscinfo->printpad,wininfos[i].wintitle,vseparator,
+	   miscinfo->printpad,wininfos[i].width,vseparator,
+	   miscinfo->printpad,wininfos[i].height,vseparator,
+           miscinfo->printpad,wininfos[i].posx,vseparator,
+           miscinfo->printpad,wininfos[i].posy);
+    }
   }
-  if (!i) {
-    return 1;
-  } else {
-    return 0;
+  for (a = 0; a < miscinfo->max_chars; a++) {
+    printf(hseparator);
   }
+  printf("\n\n");
+  return 0;
 }
 
 struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
