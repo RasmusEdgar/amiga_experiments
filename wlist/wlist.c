@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <proto/intuition.h>
+#include <clib/diskfont_protos.h>
+#include <graphics/text.h>
+#include <graphics/rastport.h>
+#include <clib/graphics_protos.h>
 
 struct Wininfo {
   int winnr;
@@ -10,18 +14,24 @@ struct Wininfo {
   short height;
   short posx;
   short posy;
+  int active;
+  int awidth;
+  struct RastPort *wrport;
+  struct TextFont *wfont;
+  struct Screen *wscreen;
 };
 
 int main(void)
 {
   struct Screen *screen;
   struct Wininfo *wininfos;
-  int winnr = 0;
-  int printer;
+  int winnr = 0, printer;
   int wincount(struct Screen *screen);
   struct Wininfo *getwininfos(struct Screen *screen, int winnr);
   int printwindows(const struct Wininfo *wininfos, int winnr);
   long unsigned ilock;
+
+  //printf("fontlength: %d\n", tlength);
 
   if ((ilock = LockIBase(0)) != 0) {
     printf("Failed to lock IntuitionBase! Exiting.\n");
@@ -79,13 +89,31 @@ int wincount(struct Screen *screen)
 
 int printwindows(const struct Wininfo *wininfos, int winnr)
 {
-  int i;
+  int a, i, max_chars, n;
+  char *text;
+  struct TextExtent te;
+
   for (i = 0; i < winnr; i++) {
+    if (wininfos[i].active) {
+      n=wininfos[i].wscreen->Width;
+      printf("wscrenw= %d\n", n);
+      text=malloc(n*sizeof(char));
+      memset(text,'-',n-1);
+      max_chars =
+	  TextFit(wininfos[i].wrport, text, strlen(text), &te, NULL, 1,
+		  wininfos[i].awidth, wininfos[i].wfont->tf_YSize + 1);
+      printf("Maxchars: %d\n", max_chars);
+      for (a = 0; a < max_chars; a++) {
+	printf("%s", "-");
+      }
+      printf("\n");
+    }
     printf("Nr: %d | Title: %s | Width: %d | Height: %d | X: %d | Y: %d \n",
 	   wininfos[i].winnr,
 	   wininfos[i].wintitle,
 	   wininfos[i].width,
 	   wininfos[i].height, wininfos[i].posx, wininfos[i].posy);
+    free(text);
   }
   if (!i) {
     return 1;
@@ -116,6 +144,14 @@ struct Wininfo *getwininfos(struct Screen *screen, int winnr)
 	wintitle = "Unnamed Window";
       } else {
 	wintitle = window->Title;
+      }
+      if (window->Flags & WINDOWACTIVE) {
+	wininfos[winnr].active = 1;
+	wininfos[winnr].wfont = window->IFont;
+	wininfos[winnr].wrport = window->RPort;
+	wininfos[winnr].awidth =
+	    window->Width - window->BorderLeft - window->BorderRight;
+        wininfos[winnr].wscreen = window->WScreen;
       }
       // Store window information in wininfos array
       wininfos[winnr].winnr = winnr;
