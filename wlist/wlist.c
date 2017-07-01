@@ -31,8 +31,6 @@ int main(void)
   int printwindows(const struct Wininfo *wininfos, int winnr);
   long unsigned ilock;
 
-  //printf("fontlength: %d\n", tlength);
-
   if ((ilock = LockIBase(0)) != 0) {
     printf("Failed to lock IntuitionBase! Exiting.\n");
     return 1;
@@ -90,11 +88,13 @@ int wincount(struct Screen *screen)
 int printwindows(const struct Wininfo *wininfos, int winnr)
 {
   int a, i, max_chars, n;
+  int indent;
   char *text;
   struct TextExtent te;
 
   for (i = 0; i < winnr; i++) {
-    if (wininfos[i].active) {
+    if (wininfos[i].active == 1) {
+      int indent;
       n=wininfos[i].wscreen->Width;
       printf("wscrenw= %d\n", n);
       text=malloc(n*sizeof(char));
@@ -103,12 +103,17 @@ int printwindows(const struct Wininfo *wininfos, int winnr)
 	  TextFit(wininfos[i].wrport, text, strlen(text), &te, NULL, 1,
 		  wininfos[i].awidth, wininfos[i].wfont->tf_YSize + 1);
       printf("Maxchars: %d\n", max_chars);
+      printf("Active window title: %s\n", wininfos[i].wintitle);
+      indent = max_chars / wininfos[i].wfont->tf_YSize; 
       for (a = 0; a < max_chars; a++) {
 	printf("%s", "-");
       }
       printf("\n");
     }
-    printf("Nr: %d | Title: %s | Width: %d | Height: %d | X: %d | Y: %d \n",
+    printf("active: %d\n",wininfos[i].active);
+    printf("title: %s\n",wininfos[i].wintitle);
+    printf("indent: %d\n", &indent);
+    printf("Nr: %d | Title: %.*s | Width: %d | Height: %d | X: %d | Y: %d \n",
 	   wininfos[i].winnr,
 	   wininfos[i].wintitle,
 	   wininfos[i].width,
@@ -152,6 +157,8 @@ struct Wininfo *getwininfos(struct Screen *screen, int winnr)
 	wininfos[winnr].awidth =
 	    window->Width - window->BorderLeft - window->BorderRight;
         wininfos[winnr].wscreen = window->WScreen;
+      } else {
+        wininfos[winnr].active = 0;
       }
       // Store window information in wininfos array
       wininfos[winnr].winnr = winnr;
