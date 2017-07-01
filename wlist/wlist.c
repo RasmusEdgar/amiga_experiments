@@ -14,7 +14,6 @@ struct Wininfo {
   short height;
   short posx;
   short posy;
-  // int active;
 };
 
 struct Miscinfo {
@@ -27,10 +26,11 @@ int main(void)
 {
   struct Screen *screen;
   struct Wininfo *wininfos;
+  struct Miscinfo *miscinfo;
   int winnr = 0, printer;
-  struct Miscinfo *miscinfo(struct Screen *screen);
+  struct Miscinfo *getmiscinfo(struct Screen *screen);
   struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo);
-  int printwindows(const struct Wininfo *wininfos, int winnr);
+  int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
   long unsigned ilock;
 
   if ((ilock = LockIBase(0)) != 0) {
@@ -41,10 +41,7 @@ int main(void)
     printf("Failed to lock default pubscreen! Exiting.\n");
     return 1;
   }
-  if (!(miscinfo = miscinfo(screen))) {
-    printf("Failed to count windows! Exiting.\n");
-    return 1;
-  }
+  miscinfo = getmiscinfo(screen);
   wininfos = getwininfos(screen, miscinfo);
   if (!wininfos) {
     printf("Failed to create window array of structs! Exiting.\n");
@@ -60,6 +57,7 @@ int main(void)
     return 1;
   }
   // Clear mem
+  free(miscinfo);
   free(wininfos);
 
   // Nilling wininfos
@@ -73,17 +71,18 @@ int main(void)
 
 }
 
-struct Miscinfo *miscinfo(struct Screen *screen)
+struct Miscinfo *getmiscinfo(struct Screen *screen)
 {
   int winnr = 0;
   struct Window *window;
-  int a, i, max_chars, n;
+  int max_chars, n;
   char *text;
   struct TextExtent te;
   int awidth;
   struct RastPort *wrport;
   struct TextFont *wfont;
   struct Screen *wscreen;
+  struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
     // Ignore Workbench window, and any backdropped windows.
     if (!(window->Flags & BACKDROP)
@@ -100,23 +99,27 @@ struct Miscinfo *miscinfo(struct Screen *screen)
         memset(text,'-',n-1);
         max_chars =
         TextFit(wrport, text, strlen(text), &te, NULL, 1,
-                 awidth, wfont->tf_YSize + 1)
-        miscinfo.indent = max_chars / wininfos[i].wfont->tf_YSize; 
-        miscinfo.max_chars = max_chars; 
+                 awidth, wfont->tf_YSize + 1);
+        miscinfo->indent = max_chars / wfont->tf_YSize; 
+        miscinfo->max_chars = max_chars; 
         free(text);
       }
-    }
     winnr++;
+    }
   }
-  miscinfo.winnr = winnr;
+  miscinfo->winnr = winnr;
   return miscinfo;
 }
 
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-
-  for (i = 0; i < miscinfo.winnr; i++) {
-    printf("Nr: %d | Title: %.*s | Width: %d | Height: %d | X: %d | Y: %d \n",
+  int a, i; 
+  for (a = 0; a < miscinfo->max_chars; a++) {
+    printf("-");
+  }
+  printf("\n");
+  for (i = 0; i < miscinfo->winnr; i++) {
+    printf("Nr: %d | Title: %s | Width: %d | Height: %d | X: %d | Y: %d \n",
 	   wininfos[i].winnr,
 	   wininfos[i].wintitle,
 	   wininfos[i].width,
@@ -135,11 +138,11 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
   struct Window *window;
   struct Wininfo *wininfo;
   char *wintitle;
-  int winnr = 0;
 
   // Allocate memory for struct array based on window count from miscinfo function
-  struct Wininfo *wininfos = malloc(miscinfo.winnr * sizeof(*wininfo));
+  struct Wininfo *wininfos = malloc(miscinfo->winnr * sizeof(*wininfo));
   // Reset winnr
+  int winnr = 0;
 
   // Loop through windows on screen
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
@@ -151,16 +154,6 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 	wintitle = "Unnamed Window";
       } else {
 	wintitle = window->Title;
-      }
-      if (window->Flags & WINDOWACTIVE) {
-	wininfos[winnr].active = 1;
-	wininfos[winnr].wfont = window->IFont;
-	wininfos[winnr].wrport = window->RPort;
-	wininfos[winnr].awidth =
-	    window->Width - window->BorderLeft - window->BorderRight;
-        wininfos[winnr].wscreen = window->WScreen;
-      } else {
-        wininfos[winnr].active = 0;
       }
       // Store window information in wininfos array
       wininfos[winnr].winnr = winnr;
