@@ -14,11 +14,13 @@ struct Wininfo {
   short height;
   short posx;
   short posy;
-  int active;
-  int awidth;
-  struct RastPort *wrport;
-  struct TextFont *wfont;
-  struct Screen *wscreen;
+  // int active;
+};
+
+struct Miscinfo {
+  int winnr;
+  int max_chars;
+  int indent;
 };
 
 int main(void)
@@ -26,8 +28,8 @@ int main(void)
   struct Screen *screen;
   struct Wininfo *wininfos;
   int winnr = 0, printer;
-  int wincount(struct Screen *screen);
-  struct Wininfo *getwininfos(struct Screen *screen, int winnr);
+  struct Miscinfo *miscinfo(struct Screen *screen);
+  struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo);
   int printwindows(const struct Wininfo *wininfos, int winnr);
   long unsigned ilock;
 
@@ -39,11 +41,11 @@ int main(void)
     printf("Failed to lock default pubscreen! Exiting.\n");
     return 1;
   }
-  if (!(winnr = wincount(screen))) {
+  if (!(miscinfo = miscinfo(screen))) {
     printf("Failed to count windows! Exiting.\n");
     return 1;
   }
-  wininfos = getwininfos(screen, winnr);
+  wininfos = getwininfos(screen, miscinfo);
   if (!wininfos) {
     printf("Failed to create window array of structs! Exiting.\n");
     return 1;
@@ -53,7 +55,7 @@ int main(void)
   UnlockIBase(ilock);
 
   // Print window list
-  if ((printer = printwindows(wininfos, winnr)) != 0) {
+  if ((printer = printwindows(wininfos, miscinfo)) != 0) {
     printf("Failed to print windows! Exiting.\n");
     return 1;
   }
@@ -71,54 +73,54 @@ int main(void)
 
 }
 
-int wincount(struct Screen *screen)
+struct Miscinfo *miscinfo(struct Screen *screen)
 {
   int winnr = 0;
   struct Window *window;
+  int a, i, max_chars, n;
+  char *text;
+  struct TextExtent te;
+  int awidth;
+  struct RastPort *wrport;
+  struct TextFont *wfont;
+  struct Screen *wscreen;
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
     // Ignore Workbench window, and any backdropped windows.
     if (!(window->Flags & BACKDROP)
 	&& (!stricmp(window->Title, "Workbench") == 0)) {
-      winnr++;
+      if (window->Flags & WINDOWACTIVE) {
+        wfont = window->IFont;
+        wrport = window->RPort;
+        awidth =
+            window->Width - window->BorderLeft - window->BorderRight;
+        wscreen = window->WScreen;
+        n=wscreen->Width;
+        printf("wscrenw= %d\n", n);
+        text=malloc(n*sizeof(char));
+        memset(text,'-',n-1);
+        max_chars =
+        TextFit(wrport, text, strlen(text), &te, NULL, 1,
+                 awidth, wfont->tf_YSize + 1)
+        miscinfo.indent = max_chars / wininfos[i].wfont->tf_YSize; 
+        miscinfo.max_chars = max_chars; 
+        free(text);
+      }
     }
+    winnr++;
   }
-  return winnr;
+  miscinfo.winnr = winnr;
+  return miscinfo;
 }
 
-int printwindows(const struct Wininfo *wininfos, int winnr)
+int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-  int a, i, max_chars, n;
-  int indent;
-  char *text;
-  struct TextExtent te;
 
-  for (i = 0; i < winnr; i++) {
-    if (wininfos[i].active == 1) {
-      int indent;
-      n=wininfos[i].wscreen->Width;
-      printf("wscrenw= %d\n", n);
-      text=malloc(n*sizeof(char));
-      memset(text,'-',n-1);
-      max_chars =
-	  TextFit(wininfos[i].wrport, text, strlen(text), &te, NULL, 1,
-		  wininfos[i].awidth, wininfos[i].wfont->tf_YSize + 1);
-      printf("Maxchars: %d\n", max_chars);
-      printf("Active window title: %s\n", wininfos[i].wintitle);
-      indent = max_chars / wininfos[i].wfont->tf_YSize; 
-      for (a = 0; a < max_chars; a++) {
-	printf("%s", "-");
-      }
-      printf("\n");
-    }
-    printf("active: %d\n",wininfos[i].active);
-    printf("title: %s\n",wininfos[i].wintitle);
-    printf("indent: %d\n", &indent);
+  for (i = 0; i < miscinfo.winnr; i++) {
     printf("Nr: %d | Title: %.*s | Width: %d | Height: %d | X: %d | Y: %d \n",
 	   wininfos[i].winnr,
 	   wininfos[i].wintitle,
 	   wininfos[i].width,
 	   wininfos[i].height, wininfos[i].posx, wininfos[i].posy);
-    free(text);
   }
   if (!i) {
     return 1;
@@ -127,17 +129,17 @@ int printwindows(const struct Wininfo *wininfos, int winnr)
   }
 }
 
-struct Wininfo *getwininfos(struct Screen *screen, int winnr)
+struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 {
 
   struct Window *window;
   struct Wininfo *wininfo;
   char *wintitle;
+  int winnr = 0;
 
-  // Allocate memory for struct array based on window count from wincount function
-  struct Wininfo *wininfos = malloc(winnr * sizeof(*wininfo));
+  // Allocate memory for struct array based on window count from miscinfo function
+  struct Wininfo *wininfos = malloc(miscinfo.winnr * sizeof(*wininfo));
   // Reset winnr
-  winnr = 0;
 
   // Loop through windows on screen
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
