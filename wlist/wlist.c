@@ -19,7 +19,7 @@ struct Wininfo {
 struct Miscinfo {
   int winnr;
   int max_chars;
-  int indent;
+  int titlelength;
 };
 
 int main(void)
@@ -88,23 +88,22 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
     if (!(window->Flags & BACKDROP)
 	&& (!stricmp(window->Title, "Workbench") == 0)) {
       if (window->Flags & WINDOWACTIVE) {
-        wfont = window->IFont;
-        wrport = window->RPort;
-        awidth =
-            window->Width - window->BorderLeft - window->BorderRight;
-        wscreen = window->WScreen;
-        n=wscreen->Width;
-        printf("wscrenw= %d\n", n);
-        text=malloc(n*sizeof(char));
-        memset(text,'-',n-1);
-        max_chars =
-        TextFit(wrport, text, strlen(text), &te, NULL, 1,
-                 awidth, wfont->tf_YSize + 1);
-        miscinfo->indent = max_chars / wfont->tf_YSize; 
-        miscinfo->max_chars = max_chars; 
-        free(text);
+	wfont = window->IFont;
+	wrport = window->RPort;
+	awidth = window->Width - window->BorderLeft - window->BorderRight;
+	wscreen = window->WScreen;
+	n = wscreen->Width;
+	printf("wscrenw= %d\n", n);
+	text = malloc(n * sizeof(char));
+	memset(text, '-', n - 1);
+	max_chars =
+	    TextFit(wrport, text, strlen(text), &te, NULL, 1,
+		    awidth, wfont->tf_YSize + 1);
+	miscinfo->titlelength = max_chars - 18;
+	miscinfo->max_chars = max_chars;
+	free(text);
       }
-    winnr++;
+      winnr++;
     }
   }
   miscinfo->winnr = winnr;
@@ -113,15 +112,15 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-  int a, i; 
+  int a, i;
   for (a = 0; a < miscinfo->max_chars; a++) {
     printf("-");
   }
   printf("\n");
   for (i = 0; i < miscinfo->winnr; i++) {
-    printf("Nr: %d | Title: %s | Width: %d | Height: %d | X: %d | Y: %d \n",
+    printf("Nr: %d | Title: %.*s | Width: %d | Height: %d | X: %d | Y: %d \n",
 	   wininfos[i].winnr,
-	   wininfos[i].wintitle,
+	   miscinfo->titlelength, wininfos[i].wintitle,
 	   wininfos[i].width,
 	   wininfos[i].height, wininfos[i].posx, wininfos[i].posy);
   }
