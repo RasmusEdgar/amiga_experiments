@@ -26,7 +26,7 @@ static const char vseparator[] = "|";
 // Known number of hardcoded chars in table row output
 static const int numcharstable = 32;
 // Known number of cells in table row output
-static const int numcellsstable = 6;
+static const int numcellstable = 6;
 // Config section done
 
 int main(void)
