@@ -21,10 +21,10 @@ struct Miscinfo {
 };
 
 // Config section. Modify the following to easily change output "table" 
-static const char hseparator[] = "_";
-static const char vseparator[] = "|";
-// Known number of hardcoded chars in table row output
-static const int numcharstable = 32;
+static const char hseparator[] = "-";
+static const char vseparator[] = "\xa6";
+// Known number of hardcoded chars in table row output, spaces count
+static const int numcharstable = 15;
 // Known number of cells in table row output
 static const int numcellstable = 6;
 // Config section done
@@ -124,15 +124,24 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
   printf("\nOpen windows on Public Screen:\n");
   for (i = 0; i < miscinfo->winnr; i++) {
     for (a = 0; a < miscinfo->max_chars; a++) {
-      printf(hseparator);
+      fputs(hseparator, stdout);
     }
-    printf("\n");
+    printf("\n%-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
+        miscinfo->printpad,"Number",vseparator,
+        miscinfo->printpad,"Title",vseparator,
+        miscinfo->printpad,"Width",vseparator,
+        miscinfo->printpad,"Height",vseparator,
+        miscinfo->printpad,"Pos X",vseparator,
+        miscinfo->printpad,"Pos Y",vseparator);
+    for (a = 0; a < miscinfo->max_chars; a++) {
+      fputs(hseparator, stdout);
+    }
     if (strlen(wininfos[i].wintitle) <= (unsigned int) miscinfo->printpad) {
        int titlelen = 0, titlediff = 0, titlepad = 0;
        titlelen = strlen(wininfos[i].wintitle);
        titlediff = miscinfo->printpad - titlelen;
        titlepad = titlediff + titlelen; 
-       printf("N: %-*d %s T: %-*s %s W: %-*d %s H: %-*d %s X: %-*d %s Y: %-*d\n",
+       printf("%-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d\n",
 	   miscinfo->printpad,wininfos[i].winnr,vseparator,
 	   titlepad,wininfos[i].wintitle,vseparator,
 	   miscinfo->printpad,wininfos[i].width,vseparator,
@@ -140,7 +149,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
            miscinfo->printpad,wininfos[i].posx,vseparator,
            miscinfo->printpad,wininfos[i].posy);
     } else { 
-       printf("N: %-*d %s T: %-.*s %s W: %-*d %s H: %-*d %s X: %-*d %s Y: %-*d\n",
+       printf("%-*d %s %-.*s %s %-*d %s %-*d %s %-*d %s %-*d\n",
 	   miscinfo->printpad,wininfos[i].winnr,vseparator,
 	   miscinfo->printpad,wininfos[i].wintitle,vseparator,
 	   miscinfo->printpad,wininfos[i].width,vseparator,
@@ -150,7 +159,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
     }
   }
   for (a = 0; a < miscinfo->max_chars; a++) {
-    printf(hseparator);
+    fputs(hseparator, stdout);
   }
   printf("\n\n");
   return 0;
