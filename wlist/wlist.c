@@ -40,6 +40,7 @@ int main(void)
   int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
   long unsigned ilock;
 
+  // Lockdown to avoid deadlocks
   if ((ilock = LockIBase(0)) != 0) {
     printf("Failed to lock IntuitionBase! Exiting.\n");
     return 1;
@@ -126,7 +127,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
       printf(hseparator);
     }
     printf("\n");
-    if (strlen(wininfos[i].wintitle) <= miscinfo->printpad) {
+    if (strlen(wininfos[i].wintitle) <= (unsigned int) miscinfo->printpad) {
        int titlelen = 0, titlediff = 0, titlepad = 0;
        titlelen = strlen(wininfos[i].wintitle);
        titlediff = miscinfo->printpad - titlelen;
