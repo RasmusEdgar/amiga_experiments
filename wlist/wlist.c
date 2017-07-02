@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <clib/graphics_protos.h>
+#include <proto/graphics.h>
 #include <proto/intuition.h>
 
 struct Wininfo {
