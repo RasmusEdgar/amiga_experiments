@@ -128,7 +128,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	   miscinfo->printpad, "Height", vseparator,
 	   miscinfo->printpad, "Pos X", vseparator,
 	   miscinfo->printpad, "Pos Y", vseparator,
-	   miscinfo->printpad, "Flag", vseparator);
+	   miscinfo->printpad, "Flag");
     for (i = 0; i < miscinfo->winnr; i++) {
 	for (a = 0; a < miscinfo->max_chars; a++) {
 	    fputs(hseparator, stdout);
