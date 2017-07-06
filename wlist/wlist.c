@@ -11,6 +11,7 @@ struct Wininfo {
   short height;
   short posx;
   short posy;
+  char flag[16];
 };
 
 struct Miscinfo {
@@ -24,9 +25,9 @@ struct Miscinfo {
 static const char hseparator[] = "-";
 static const char vseparator[] = "\xa6";
 // Known number of hardcoded chars in table row output, spaces count
-static const int numcharstable = 15;
+static const int numcharstable = 18;
 // Known number of cells in table row output
-static const int numcellstable = 6;
+static const int numcellstable = 7;
 // Config section done
 
 int main(void)
@@ -94,25 +95,22 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
   struct TextFont *wfont;
   struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
-    // Ignore Workbench window, and any backdropped windows.
-    if (!(window->Flags & BACKDROP)
-	&& (!stricmp(window->Title, "Workbench") == 0)) {
-      if (window->Flags & WINDOWACTIVE) {
-	wfont = window->IFont;
-	wrport = window->RPort;
-	awidth = window->Width - window->BorderLeft - window->BorderRight;
-	wswidth = window->WScreen->Width;
-	text = malloc(wswidth * sizeof(char));
-	memset(text, '-', wswidth - 1);
-	max_chars =
-	    TextFit(wrport, text, strlen(text), &te, NULL, 1,
-		    awidth, wfont->tf_YSize + 1);
-	miscinfo->max_chars = max_chars;
-	miscinfo->printpad = (max_chars - numcharstable) / numcellstable;
-	free(text);
-      }
-      winnr++;
+    // Get width of terminal window for printing table and count windows.
+    if (window->Flags & WINDOWACTIVE) {
+      wfont = window->IFont;
+      wrport = window->RPort;
+      awidth = window->Width - window->BorderLeft - window->BorderRight;
+      wswidth = window->WScreen->Width;
+      text = malloc(wswidth * sizeof(char));
+      memset(text, '-', wswidth - 1);
+      max_chars =
+      TextFit(wrport, text, strlen(text), &te, NULL, 1,
+        awidth, wfont->tf_YSize + 1);
+      miscinfo->max_chars = max_chars;
+      miscinfo->printpad = (max_chars - numcharstable) / numcellstable;
+      free(text);
     }
+    winnr++;
   }
   miscinfo->winnr = winnr;
   return miscinfo;
@@ -122,17 +120,18 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
   int a, i;
   printf("\nOpen windows on Public Screen:\n");
+  for (a = 0; a < miscinfo->max_chars; a++) {
+    fputs(hseparator, stdout);
+  }
+  printf("\n%-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
+      miscinfo->printpad,"Number",vseparator,
+      miscinfo->printpad,"Title",vseparator,
+      miscinfo->printpad,"Width",vseparator,
+      miscinfo->printpad,"Height",vseparator,
+      miscinfo->printpad,"Pos X",vseparator,
+      miscinfo->printpad,"Pos Y",vseparator,
+      miscinfo->printpad,"Flag",vseparator);
   for (i = 0; i < miscinfo->winnr; i++) {
-    for (a = 0; a < miscinfo->max_chars; a++) {
-      fputs(hseparator, stdout);
-    }
-    printf("\n%-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
-        miscinfo->printpad,"Number",vseparator,
-        miscinfo->printpad,"Title",vseparator,
-        miscinfo->printpad,"Width",vseparator,
-        miscinfo->printpad,"Height",vseparator,
-        miscinfo->printpad,"Pos X",vseparator,
-        miscinfo->printpad,"Pos Y",vseparator);
     for (a = 0; a < miscinfo->max_chars; a++) {
       fputs(hseparator, stdout);
     }
@@ -141,21 +140,23 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
        titlelen = strlen(wininfos[i].wintitle);
        titlediff = miscinfo->printpad - titlelen;
        titlepad = titlediff + titlelen; 
-       printf("%-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d\n",
+       printf("%-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
 	   miscinfo->printpad,wininfos[i].winnr,vseparator,
 	   titlepad,wininfos[i].wintitle,vseparator,
 	   miscinfo->printpad,wininfos[i].width,vseparator,
 	   miscinfo->printpad,wininfos[i].height,vseparator,
            miscinfo->printpad,wininfos[i].posx,vseparator,
-           miscinfo->printpad,wininfos[i].posy);
+           miscinfo->printpad,wininfos[i].posy,vseparator,
+           miscinfo->printpad,wininfos[i].flag);
     } else { 
-       printf("%-*d %s %-.*s %s %-*d %s %-*d %s %-*d %s %-*d\n",
+       printf("%-*d %s %-.*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
 	   miscinfo->printpad,wininfos[i].winnr,vseparator,
 	   miscinfo->printpad,wininfos[i].wintitle,vseparator,
 	   miscinfo->printpad,wininfos[i].width,vseparator,
 	   miscinfo->printpad,wininfos[i].height,vseparator,
            miscinfo->printpad,wininfos[i].posx,vseparator,
-           miscinfo->printpad,wininfos[i].posy);
+           miscinfo->printpad,wininfos[i].posy,vseparator,
+           miscinfo->printpad,wininfos[i].flag);
     }
   }
   for (a = 0; a < miscinfo->max_chars; a++) {
@@ -170,34 +171,95 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
   struct Window *window;
   struct Wininfo *wininfo;
-  char *wintitle;
+  char *wintitle, bd[3], ac[3], bl[3], wb[3], gz[3];
 
   // Allocate memory for struct array based on window count from miscinfo function
   struct Wininfo *wininfos = malloc(miscinfo->winnr * sizeof(*wininfo));
+
   // Reset winnr
   int winnr = 0;
 
   // Loop through windows on screen
   for (window = screen->FirstWindow; window; window = window->NextWindow) {
-    // Ignore Workbench window and any backdropped ones.
-    if (!(window->Flags & BACKDROP)
-	&& (!stricmp(window->Title, "Workbench") == 0)) {
-      // Set default window title if  NULL
-      if (!window->Title) {
-	wintitle = "Unnamed Window";
-      } else {
-	wintitle = window->Title;
-      }
-      // Store window information in wininfos array
-      wininfos[winnr].winnr = winnr;
-      wininfos[winnr].wintitle = wintitle;
-      wininfos[winnr].width = window->Width;
-      wininfos[winnr].height = window->Height;
-      wininfos[winnr].posx = window->LeftEdge;
-      wininfos[winnr].posy = window->TopEdge;
-      winnr++;
-    }
-  }
 
-  return wininfos;
+    // reset flags char array
+    char flags[16] = {0};
+
+    if (window->Flags & BACKDROP) {
+       if(strlen(flags) == 0) {
+       strcpy(bd,"bd");
+       strcpy(flags,bd);
+       } else {
+       strcpy(bd,"/bd");
+       strcat(flags,bd);
+       }
+    }
+    
+    if (window->Flags & WINDOWACTIVE) {
+       if(strlen(flags) == 0) {
+       strcpy(ac,"ac");
+       strcpy(flags,ac);
+       } else {
+       strcpy(ac,"/ac");
+       strcat(flags,ac);
+       }
+    }
+
+    if (window->Flags & BORDERLESS) {
+       if(strlen(flags) == 0) {
+       strcpy(bl,"bl");
+       strcpy(flags,bl);
+       } else {
+       strcpy(bl,"/bl");
+       strcat(flags,bl);
+       }
+    }
+
+    if (window->Flags & WBENCHWINDOW) {
+       if(strlen(flags) == 0) {
+       strcpy(wb,"wb");
+       strcpy(flags,wb);
+       } else {
+       strcpy(wb,"/wb");
+       strcat(flags,wb);
+       }
+    }
+
+    if (window->Flags & GIMMEZEROZERO) {
+       if(strlen(flags) == 0) {
+       strcpy(gz,"gz");
+       strcpy(flags,gz);
+       } else {
+       strcpy(gz,"/gz");
+       strcat(flags,gz);
+       }
+    }
+
+    // copy contents of flags array to wininfos[winnr].flag
+    memcpy(wininfos[winnr].flag,flags,14);
+
+    // pad last char with zero
+    wininfos[winnr].flag[16] = 0;
+   
+    // Set default window title if  NULL
+    if (window->Flags & WBENCHWINDOW) {
+      wintitle = "Workbench";
+    } 
+    if (!window->Title) {
+	wintitle = "Unnamed Winwdow";
+    } else {
+	wintitle = window->Title;
+    }
+      
+    // Store window information in wininfos array
+    wininfos[winnr].winnr = winnr;
+    wininfos[winnr].wintitle = wintitle;
+    wininfos[winnr].width = window->Width;
+    wininfos[winnr].height = window->Height;
+    wininfos[winnr].posx = window->LeftEdge;
+    wininfos[winnr].posy = window->TopEdge;
+    winnr++;
+    free(flags);
+  }
+return wininfos;
 }
