@@ -30,7 +30,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
 static const char hseparator[] = "-";
 static const char vseparator[] = "\xa6";
 // Known number of hardcoded chars in table row output, spaces count
-static const int numcharstable = 18;
+static const int numcharstable = 19;
 // Known number of cells in table row output
 static const int numcellstable = 7;
 // Config section done
@@ -117,11 +117,18 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
     int a, i;
-    printf("\nOpen windows on Public Screen:\n");
+    printf("\n Open windows on Public Screen:\n");
     for (a = 0; a < miscinfo->max_chars; a++) {
 	fputs(hseparator, stdout);
     }
-    printf("\n%-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
+    printf(" Flag legend:\n %s\n %s\n %s\n %s\n %s\n %s\n",
+          "bd = BACDROP", "ac = WINACTIVE",
+          "bl = BORDERLESS", "wb = WBENCHWINDOW",
+          "gz = GIMMEZEROZERO", "zo = ZOOMED");
+    for (a = 0; a < miscinfo->max_chars; a++) {
+	fputs(hseparator, stdout);
+    }
+    printf("\n %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
 	   miscinfo->printpad, "Number", vseparator,
 	   miscinfo->printpad, "Title", vseparator,
 	   miscinfo->printpad, "Width", vseparator,
@@ -138,7 +145,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	    titlelen = strlen(wininfos[i].wintitle);
 	    titlediff = miscinfo->printpad - titlelen;
 	    titlepad = titlediff + titlelen;
-	    printf("%-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
+	    printf(" %-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
 		   miscinfo->printpad, wininfos[i].winnr, vseparator,
 		   titlepad, wininfos[i].wintitle, vseparator,
 		   miscinfo->printpad, wininfos[i].width, vseparator,
@@ -147,7 +154,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 		   miscinfo->printpad, wininfos[i].posy, vseparator,
 		   miscinfo->printpad, wininfos[i].flag);
 	} else {
-	    printf("%-*d %s %-.*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
+	    printf(" %-*d %s %-.*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
 		   miscinfo->printpad, wininfos[i].winnr, vseparator,
 		   miscinfo->printpad, wininfos[i].wintitle, vseparator,
 		   miscinfo->printpad, wininfos[i].width, vseparator,
@@ -169,7 +176,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
     struct Window *window;
     struct Wininfo *wininfo;
-    char *wintitle, bd[3], ac[3], bl[3], wb[3], gz[3];
+    char *wintitle, bd[3], ac[3], bl[3], wb[3], gz[3], zo[3];
 
     // Allocate memory for struct array based on window count from miscinfo function
     struct Wininfo *wininfos = malloc(miscinfo->winnr * sizeof(*wininfo));
@@ -180,7 +187,8 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
     // Loop through windows on screen
     for (window = screen->FirstWindow; window; window = window->NextWindow) {
 
-	// reset flags char array
+        // Check window flags for window
+	// First reset flags char array
 	char flags[16] = { 0 };
 
 	if (window->Flags & BACKDROP) {
@@ -232,16 +240,23 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 		strcat(flags, gz);
 	    }
 	}
+
+	if (window->Flags & ZOOMED) {
+	    if (strlen(flags) == 0) {
+		strcpy(zo, "zo");
+		strcpy(flags, zo);
+	    } else {
+		strcpy(zo, "/zo");
+		strcat(flags, zo);
+	    }
+	}
+
 	// copy contents of flags array to wininfos[winnr].flag
 	memcpy(wininfos[winnr].flag, flags, 14);
 
 	// pad last char with zero
 	wininfos[winnr].flag[16] = 0;
 
-	// Set default window title if  NULL
-	if (window->Flags & WBENCHWINDOW) {
-	    wintitle = "Workbench";
-	}
 	if (!window->Title) {
 	    wintitle = "Unnamed Winwdow";
 	} else {
@@ -256,7 +271,6 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 	wininfos[winnr].posx = window->LeftEdge;
 	wininfos[winnr].posy = window->TopEdge;
 	winnr++;
-	free(flags);
     }
     return wininfos;
 }
