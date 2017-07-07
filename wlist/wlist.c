@@ -48,10 +48,12 @@ int main(void)
 	printf("Failed to lock IntuitionBase! Exiting.\n");
 	return 1;
     }
+
     if (!(screen = LockPubScreen(NULL))) {
 	printf("Failed to lock default pubscreen! Exiting.\n");
 	return 1;
     }
+
     // Get window count and other information needed to print on terminal
     miscinfo = getmiscinfo(screen);
 
@@ -59,12 +61,14 @@ int main(void)
 	printf("Failed to fetch misc. info! Exiting.\n");
 	return 1;
     }
+
     // Gather needed info from open windows
     wininfos = getwininfos(screen, miscinfo);
     if (!wininfos) {
 	printf("Failed to create window array of structs! Exiting.\n");
 	return 1;
     }
+
     // Unlock Pubscreen and Intuitionbase both return nothing
     UnlockPubScreen(0L, screen);
     UnlockIBase(ilock);
@@ -74,6 +78,7 @@ int main(void)
 	printf("Failed to print windows! Exiting.\n");
 	return 1;
     }
+
     // Clear mem
     free(miscinfo);
     free(wininfos);
