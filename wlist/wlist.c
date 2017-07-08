@@ -58,6 +58,7 @@ int main(void)
     miscinfo = getmiscinfo(screen);
 
     if (!miscinfo) {
+        free(miscinfo);
 	printf("Failed to fetch misc. info! Exiting.\n");
 	return 1;
     }
@@ -65,6 +66,7 @@ int main(void)
     // Gather needed info from open windows
     wininfos = getwininfos(screen, miscinfo);
     if (!wininfos) {
+        free(wininfos);
 	printf("Failed to create window array of structs! Exiting.\n");
 	return 1;
     }
@@ -75,6 +77,8 @@ int main(void)
 
     // Print window list
     if ((printer = printwindows(wininfos, miscinfo)) != 0) {
+        free(miscinfo);
+        free(wininfos);
 	printf("Failed to print windows! Exiting.\n");
 	return 1;
     }
