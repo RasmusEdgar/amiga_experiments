@@ -12,12 +12,12 @@ static const int numcharstable = 19;
 // Known number of cells in table row output
 static const int numcellstable = 7;
 // Flag array size
-enum { flag_size = 23 };
+enum { flag_size = 19 };
 // Config section done
 
 struct Wininfo {
     int winnr;
-    unsigned char *wintitle;
+    const char *wintitle;
     short width;
     short height;
     short posx;
@@ -26,7 +26,7 @@ struct Wininfo {
 };
 
 struct Miscinfo {
-    int winnr;
+    int mwinnr;
     int max_chars;
     int titlepad;
     int printpad;
@@ -42,8 +42,8 @@ int main(void)
     struct Screen *screen;
     struct Wininfo *wininfos;
     struct Miscinfo *miscinfo;
-    int printer;
-    long unsigned ilock;
+    int printer = 0;
+    unsigned long ilock = 0;
 
     // Lockdown to avoid deadlocks
     if ((ilock = LockIBase(0)) != 0) {
@@ -74,7 +74,7 @@ int main(void)
     }
 
     // Unlock Pubscreen and Intuitionbase both return nothing
-    UnlockPubScreen(0L, screen);
+    UnlockPubScreen(NULL, screen);
     UnlockIBase(ilock);
 
     // Print window list
@@ -96,13 +96,23 @@ int main(void)
 
 struct Miscinfo *getmiscinfo(struct Screen *screen)
 {
-    int winnr = 0, max_chars = 0, wswidth = 0, awidth = 0;
-    unsigned char *text;
+    int mwinnr = 0;
+    int max_chars = 0; 
+    int wswidth = 0;
+    int awidth = 0;
+    unsigned char *text = NULL;
     struct Window *window;
     struct TextExtent te;
     struct RastPort *wrport;
     struct TextFont *wfont;
+
+    // Malloc 
     struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
+    
+    if (miscinfo == NULL) {
+        return NULL;
+    }
+
     for (window = screen->FirstWindow; window; window = window->NextWindow) {
 	// Get width of terminal window for printing table and count windows.
 	if (window->Flags & WINDOWACTIVE) {
@@ -119,15 +129,19 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 	    miscinfo->printpad = (max_chars - numcharstable) / numcellstable;
 	    free(text);
 	}
-	winnr++;
+	mwinnr++;
     }
-    miscinfo->winnr = winnr;
+    miscinfo->mwinnr = mwinnr;
     return miscinfo;
 }
 
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-    int a, i;
+    int a;
+    int i;
+    int titlelen = 0;
+    int titlediff = 0; 
+    int titlepad = 0;
     printf("\n Open windows on Public Screen:\n");
     for (a = 0; a < miscinfo->max_chars; a++) {
 	fputs(hseparator, stdout);
@@ -147,13 +161,12 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	   miscinfo->printpad, "Pos X", vseparator,
 	   miscinfo->printpad, "Pos Y", vseparator,
 	   miscinfo->printpad, "Flag(s)");
-    for (i = 0; i < miscinfo->winnr; i++) {
+    for (i = 0; i < miscinfo->mwinnr; i++) {
 	for (a = 0; a < miscinfo->max_chars; a++) {
 	    fputs(hseparator, stdout);
 	}
-	if (strlen((const char*)wininfos[i].wintitle) <= (unsigned int)miscinfo->printpad) {
-	    int titlelen = 0, titlediff = 0, titlepad = 0;
-	    titlelen = strlen((const char*)wininfos[i].wintitle);
+	if (strlen(wininfos[i].wintitle) <= miscinfo->printpad) {
+	    titlelen = strlen(wininfos[i].wintitle);
 	    titlediff = miscinfo->printpad - titlelen;
 	    titlepad = titlediff + titlelen;
 	    printf(" %-*d %s %-*s %s %-*d %s %-*d %s %-*d %s %-*d %s %-*s\n",
@@ -184,26 +197,26 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 
 struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 {
+    int winnr = 0;
+    char flags[flag_size] = {0};
 
     struct Window *window;
     struct Wininfo *wininfo;
 
     // Allocate memory for struct array based on window count from miscinfo function
-    struct Wininfo *wininfos = malloc(miscinfo->winnr * sizeof(*wininfo));
+    struct Wininfo *wininfos = malloc(miscinfo->mwinnr * sizeof(*wininfo));
 
-    // Reset winnr
-    int winnr = 0;
+    if (wininfos == NULL) {
+        return NULL;
+    }
 
     // Loop through windows on screen
     for (window = screen->FirstWindow; window; window = window->NextWindow) {
 
         // Check window flags for window
-	// First reset flags char array
-	char flags[flag_size] = {0};
-
 	if (window->Flags & BACKDROP) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "bd", flag_size - 1);
+		strcpy(flags, "bd");
 	    } else {
 		strncat(flags, "/bd", flag_size - strlen(flags) - 1);
 	    }
@@ -211,7 +224,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
 	if (window->Flags & WINDOWACTIVE) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "ac", flag_size - 1);
+                strcpy(flags, "ac");
 	    } else {
 		strncat(flags, "/ac", flag_size - strlen(flags) - 1);
 	    }
@@ -219,7 +232,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
 	if (window->Flags & BORDERLESS) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "bl", flag_size - 1);
+		strcpy(flags, "bl");
 	    } else {
 		strncat(flags, "/bl", flag_size - strlen(flags) - 1);
 	    }
@@ -227,7 +240,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
 	if (window->Flags & WBENCHWINDOW) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "wb", flag_size - 1);
+		strcpy(flags, "wb");
 	    } else {
 		strncat(flags, "/wb", flag_size - strlen(flags) - 1);
 	    }
@@ -235,7 +248,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
 	if (window->Flags & GIMMEZEROZERO) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "gz", flag_size - 1);
+		strcpy(flags, "gz");
 	    } else {
 		strncat(flags, "/gz", flag_size - strlen(flags) - 1);
 	    }
@@ -243,7 +256,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
 	if (window->Flags & ZOOMED) {
 	    if (strlen(flags) == 0) {
-		strncpy(flags, "zo", flag_size - 1);
+		strcpy(flags, "zo");
 	    } else {
 		strncat(flags, "/zo", flag_size - strlen(flags) - 1);
 	    }
@@ -252,15 +265,11 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 	// copy contents of flags array to wininfos[winnr].flag
 	memcpy(wininfos[winnr].flag, flags, flag_size);
 
-	// pad last char with zero
-	wininfos[winnr].flag[flag_size] = 0;
-
         // Clear flags array
         memset(&flags[0], 0, sizeof(flags));
 
 	if (!window->Title) {
-	    memcpy(wininfos[winnr].wintitle, "Unnamed Window", 15);
-            wininfos[winnr].wintitle[15] = 0;
+            wininfos[winnr].wintitle = "Unnamed Window";
 	} else {
 	    wininfos[winnr].wintitle = window->Title;
 	}
