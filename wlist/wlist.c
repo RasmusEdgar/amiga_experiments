@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
 
@@ -32,10 +33,26 @@ struct Miscinfo {
     int printpad;
 };
 
+struct Flagarray {
+    unsigned long hexflag;
+    char flagname[54];
+};
+
+static struct Flagarray flagarray[] = {
+    { 0x00000100, "BACKDROP" },
+    { 0x00000400, "GIMMEZEROZERO" },
+    { 0x00000800, "BORDERLESS" },
+    { 0x00002000, "WINDOWACTIVE" },
+    { 0x02000000, "WBENCHWINDOW" },
+    { 0x10000000, "ZOOMED" }
+};
+
+
 // Function prototypes
 struct Miscinfo *getmiscinfo(struct Screen *screen);
 struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo);
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
+void getflags(char *flags, struct Window *window);
 
 int main(void)
 {
@@ -137,19 +154,26 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-    int a;
-    int i;
+    int a = 0;
+    int i = 0;
+    int j = 0;
     int titlelen = 0;
     int titlediff = 0; 
     int titlepad = 0;
+    char trflagname[4] = {0};
+    char trlflagname[4] = {0};
     printf("\n Open windows on Public Screen:\n");
     for (a = 0; a < miscinfo->max_chars; a++) {
 	fputs(hseparator, stdout);
     }
-    printf(" Flag legend:\n %s\n %s\n %s\n %s\n %s\n %s\n",
-          "bd = BACKDROP", "ac = WINACTIVE",
-          "bl = BORDERLESS", "wb = WBENCHWINDOW",
-          "gz = GIMMEZEROZERO", "zo = ZOOMED");
+    printf(" %s:\n", "Flaglegend");
+    for (i = 0 ; i < sizeof flagarray / sizeof(struct Flagarray) ; ++i) {
+        strncpy(trflagname, flagarray[i].flagname, 2);
+        for (j = 0; j < strlen(trflagname); j++) {
+            trlflagname[j] = tolower(trflagname[j]);
+        }
+        printf(" %s: %s\n", trlflagname, flagarray[i].flagname);
+    }
     for (a = 0; a < miscinfo->max_chars; a++) {
 	fputs(hseparator, stdout);
     }
@@ -200,6 +224,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
     int winnr = 0;
     char flags[flag_size] = {0};
 
+
     struct Window *window;
     struct Wininfo *wininfo;
 
@@ -212,55 +237,9 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 
     // Loop through windows on screen
     for (window = screen->FirstWindow; window; window = window->NextWindow) {
+         
+        getflags(flags, window);
 
-        // Check window flags for window
-	if (window->Flags & BACKDROP) {
-	    if (strlen(flags) == 0) {
-		strcpy(flags, "bd");
-	    } else {
-		strncat(flags, "/bd", flag_size - strlen(flags) - 1);
-	    }
-	}
-
-	if (window->Flags & WINDOWACTIVE) {
-	    if (strlen(flags) == 0) {
-                strcpy(flags, "ac");
-	    } else {
-		strncat(flags, "/ac", flag_size - strlen(flags) - 1);
-	    }
-	}
-
-	if (window->Flags & BORDERLESS) {
-	    if (strlen(flags) == 0) {
-		strcpy(flags, "bl");
-	    } else {
-		strncat(flags, "/bl", flag_size - strlen(flags) - 1);
-	    }
-	}
-
-	if (window->Flags & WBENCHWINDOW) {
-	    if (strlen(flags) == 0) {
-		strcpy(flags, "wb");
-	    } else {
-		strncat(flags, "/wb", flag_size - strlen(flags) - 1);
-	    }
-	}
-
-	if (window->Flags & GIMMEZEROZERO) {
-	    if (strlen(flags) == 0) {
-		strcpy(flags, "gz");
-	    } else {
-		strncat(flags, "/gz", flag_size - strlen(flags) - 1);
-	    }
-	}
-
-	if (window->Flags & ZOOMED) {
-	    if (strlen(flags) == 0) {
-		strcpy(flags, "zo");
-	    } else {
-		strncat(flags, "/zo", flag_size - strlen(flags) - 1);
-	    }
-	}
 
 	// copy contents of flags array to wininfos[winnr].flag
 	memcpy(wininfos[winnr].flag, flags, flag_size);
@@ -271,7 +250,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 	if (!window->Title) {
             wininfos[winnr].wintitle = "Unnamed Window";
 	} else {
-	    wininfos[winnr].wintitle = window->Title;
+	    wininfos[winnr].wintitle = (const char*)window->Title;
 	}
 
 	// Store window information in wininfos array
@@ -283,5 +262,48 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 	winnr++;
     }
     return wininfos;
+}
+
+void getflags(char *flags, struct Window *window)
+{
+    int i = 0;
+    int j = 0;
+    char trflagname[4] = {0};
+    char trlflagname[4] = {0};
+    char tmpflag[19] = {0};
+    char sep[3] = "/";
+
+    for (i = 0 ; i < sizeof flagarray / sizeof(struct Flagarray) ; ++i) {
+        if (window->Flags & flagarray[i].hexflag) {
+            // clear truncate flagname variables
+            memset(trflagname, 0, 4);
+            memset(trlflagname, 0, 4);
+            // copy first to chars to trflagname
+            strncpy(trflagname, flagarray[i].flagname, 2);
+            // ensure NUL terminator
+            trflagname[3] = '\0';
+            // uncapitalize letters
+            for (j = 0; j < strlen(trflagname); j++) {
+                trlflagname[j] = tolower(trflagname[j]);
+            }
+            // Create flag strings
+            if (flags[0] == 0) {
+                strncat(trlflagname, sep, strlen(trlflagname) - 1);
+                strcpy(flags, trlflagname);
+            } else {
+                strncat(trlflagname, sep, strlen(trlflagname) - 1);
+                strncat(flags, trlflagname, flag_size - strlen(flags) - 1);
+            }
+        }
+    }
+
+    // Remove trailing "/"
+    if ( flags[strlen(flags) - 1] == '/' ) {
+        strncpy(tmpflag, flags, strlen(flags)); 
+        tmpflag[strlen(flags) - 1] = '\0'; 
+        strncpy(flags, tmpflag, strlen(flags));
+    }
+
+   return;
 }
 
