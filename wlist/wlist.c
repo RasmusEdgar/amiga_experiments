@@ -35,7 +35,7 @@ struct Miscinfo {
 
 struct Flagarray {
 	unsigned long hexflag;
-	char flagname[54];
+	char flagname[14];
 };
 
 // In order to check for bit flags, I opted for a struct contaning bitmasks from intuition.h
