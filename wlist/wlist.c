@@ -38,6 +38,7 @@ struct Flagarray {
 	char flagname[54];
 };
 
+// In order to check for bit flags, I opted for a struct contaning bitmasks from intuition.h
 static struct Flagarray flagarray[] = {
 	{0x00000100, "BACKDROP"},
 	{0x00000400, "GIMMEZEROZERO"},
@@ -48,31 +49,22 @@ static struct Flagarray flagarray[] = {
 };
 
 // Function prototypes
-struct Miscinfo *getmiscinfo(struct Screen *screen);
-struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo);
+int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo);
+void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
+		 struct Wininfo *wininfos);
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
 void getflags(char *flags, struct Window *window);
 
 int main(void)
 {
-	struct Screen *screen;
-	struct Wininfo *wininfos;
-	struct Miscinfo *miscinfo;
+	unsigned long ilock = LockIBase(0L);
+	struct Screen *screen = LockPubScreen(NULL);
+	struct Wininfo *wininfo;
+	// Malloc miscinfo and wininfos
+	struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
+	struct Wininfo *wininfos =
+	    malloc(getmiscinfo(screen, miscinfo) * sizeof(*wininfo));
 	int printer = 0;
-	unsigned long ilock = 0;
-
-	// Lockdown to avoid deadlocks
-	if ((ilock = LockIBase(0)) != 0) {
-		printf("Failed to lock IntuitionBase! Exiting.\n");
-		return 1;
-	}
-
-	if (!(screen = LockPubScreen(NULL))) {
-		printf("Failed to lock default pubscreen! Exiting.\n");
-		return 1;
-	}
-	// Get window count and other information needed to print on terminal
-	miscinfo = getmiscinfo(screen);
 
 	if (!miscinfo) {
 		free(miscinfo);
@@ -80,7 +72,7 @@ int main(void)
 		return 1;
 	}
 	// Gather needed info from open windows
-	wininfos = getwininfos(screen, miscinfo);
+	getwininfos(screen, miscinfo, wininfos);
 	if (!wininfos) {
 		free(wininfos);
 		printf("Failed to create window array of structs! Exiting.\n");
@@ -106,9 +98,8 @@ int main(void)
 
 }
 
-struct Miscinfo *getmiscinfo(struct Screen *screen)
+int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo)
 {
-	int mwinnr = 0;
 	int max_chars = 0;
 	int wswidth = 0;
 	int awidth = 0;
@@ -118,12 +109,8 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 	struct RastPort *wrport;
 	struct TextFont *wfont;
 
-	// Malloc 
-	struct Miscinfo *miscinfo = malloc(sizeof(struct Miscinfo));
-
-	if (miscinfo == NULL) {
-		return NULL;
-	}
+	// Set window counter 
+	miscinfo->mwinnr = 0;
 
 	for (window = screen->FirstWindow; window; window = window->NextWindow) {
 		// Get width of terminal window for printing table and count windows.
@@ -144,10 +131,9 @@ struct Miscinfo *getmiscinfo(struct Screen *screen)
 			    (max_chars - numcharstable) / numcellstable;
 			free(text);
 		}
-		mwinnr++;
+		miscinfo->mwinnr++;
 	}
-	miscinfo->mwinnr = mwinnr;
-	return miscinfo;
+	return miscinfo->mwinnr;
 }
 
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
@@ -219,21 +205,14 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	return 0;
 }
 
-struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
+void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
+		 struct Wininfo *wininfos)
 {
 	int winnr = 0;
 	char flags[flag_size] = { 0 };
 
 	struct Window *window;
-	struct Wininfo *wininfo;
 
-	// Allocate memory for struct array based on window count from miscinfo function
-	struct Wininfo *wininfos = malloc(miscinfo->mwinnr * sizeof(*wininfo));
-
-	if (wininfos == NULL) {
-		return NULL;
-	}
-	// Loop through windows on screen
 	for (window = screen->FirstWindow; window; window = window->NextWindow) {
 
 		getflags(flags, window);
@@ -258,7 +237,7 @@ struct Wininfo *getwininfos(struct Screen *screen, struct Miscinfo *miscinfo)
 		wininfos[winnr].posy = window->TopEdge;
 		winnr++;
 	}
-	return wininfos;
+	return;
 }
 
 void getflags(char *flags, struct Window *window)
