@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <dos/dosextens.h>
 #include <ctype.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
@@ -10,6 +9,7 @@
 int main(void)
 {
 	struct TagItem tagitem[5];
+        struct IntuiText wtext;
 	unsigned long ilock = LockIBase(0L);
 	struct Screen *screen = LockPubScreen(NULL);
 	struct Window *window;
@@ -29,6 +29,15 @@ int main(void)
         tagitem[4].ti_Tag = TAG_DONE;
 
         if (window = OpenWindowTagList(NULL, tagitem)) { 
+		wtext.LeftEdge = 10;
+		wtext.TopEdge = 2;
+		wtext.IText = "Hello Intuition!";
+		wtext.ITextFont = NULL;
+		wtext.DrawMode = JAM1;
+		wtext.FrontPen = 1;
+		wtext.NextText = NULL;
+
+		PrintIText( window->RPort, &wtext, 0, 0 );
 		Delay(200);
         	CloseWindow(window);
 	}
@@ -39,3 +48,4 @@ int main(void)
 	return 0;
 
 }
+
