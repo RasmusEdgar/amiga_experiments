@@ -71,6 +71,7 @@ int main(void)
 	if (!miscinfo) {
 		free(miscinfo);
 		printf("Failed to fetch misc. info! Exiting.\n");
+
 		return 1;
 	}
 	// Gather needed info from open windows
@@ -78,6 +79,7 @@ int main(void)
 	if (!wininfos) {
 		free(wininfos);
 		printf("Failed to create window array of structs! Exiting.\n");
+
 		return 1;
 	}
 	// Unlock Pubscreen and Intuitionbase both return nothing
@@ -89,6 +91,7 @@ int main(void)
 		free(miscinfo);
 		free(wininfos);
 		printf("Failed to print windows! Exiting.\n");
+
 		return 1;
 	}
 	// Clear mem
@@ -97,7 +100,6 @@ int main(void)
 
 	// And we are done
 	return 0;
-
 }
 
 int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo)
@@ -135,12 +137,14 @@ int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo)
 		}
 		miscinfo->mwinnr++;
 	}
+
 	return miscinfo->mwinnr;
 }
 
 void separate(int count)
 {
 	int i = 0;
+
 	for (i = 0; i < count; i++) {
 		fputs(hseparator, stdout);
 	}
@@ -153,16 +157,20 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	int titlediff = 0;
 	int titlepad = 0;
 	char trflagname[4] = { 0 };
+
 	printf("\n Open windows on Public Screen:\n");
 	separate(miscinfo->max_chars);
 	printf(" %s:\n", "Flaglegend");
+
 	for (i = 0; i < sizeof flagarray / sizeof(struct Flagarray); ++i) {
 		strncpy(trflagname, flagarray[i].flagname, 2);
 		// uncapitalize letters
 		lowflagname(trflagname, strlen(trflagname));
 		printf(" %s: %s\n", trflagname, flagarray[i].flagname);
 	}
+
 	separate(miscinfo->max_chars);
+
 	printf("\n %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
 	       miscinfo->printpad, "Number", vseparator,
 	       miscinfo->printpad, "Title", vseparator,
@@ -171,8 +179,11 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	       miscinfo->printpad, "Pos X", vseparator,
 	       miscinfo->printpad, "Pos Y", vseparator,
 	       miscinfo->printpad, "Flag(s)");
+
 	for (i = 0; i < miscinfo->mwinnr; i++) {
+
 		separate(miscinfo->max_chars);
+
 		if (strlen(wininfos[i].wintitle) <= miscinfo->printpad) {
 			titlelen = strlen(wininfos[i].wintitle);
 			titlediff = miscinfo->printpad - titlelen;
@@ -211,16 +222,12 @@ void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 {
 	int winnr = 0;
 	char flags[flag_size] = { 0 };
-
 	struct Window *window;
 
 	for (window = screen->FirstWindow; window; window = window->NextWindow) {
-
 		getflags(flags, window);
-
 		// copy contents of flags array to wininfos[winnr].flag
 		memcpy(wininfos[winnr].flag, flags, flag_size);
-
 		// Clear flags array
 		memset(&flags[0], 0, sizeof(flags));
 
@@ -238,6 +245,7 @@ void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 		wininfos[winnr].posy = window->TopEdge;
 		winnr++;
 	}
+
 	return;
 }
 
