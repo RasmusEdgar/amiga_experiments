@@ -53,7 +53,9 @@ int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo);
 void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 		 struct Wininfo *wininfos);
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
+void lowflagname(char *trflagname, int count);
 void getflags(char *flags, struct Window *window);
+void separate(int count);
 
 int main(void)
 {
@@ -136,31 +138,31 @@ int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo)
 	return miscinfo->mwinnr;
 }
 
+void separate(int count)
+{
+	int i = 0;
+	for (i = 0; i < count; i++) {
+		fputs(hseparator, stdout);
+	}
+}
+
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 {
-	int a = 0;
 	int i = 0;
-	int j = 0;
 	int titlelen = 0;
 	int titlediff = 0;
 	int titlepad = 0;
 	char trflagname[4] = { 0 };
-	char trlflagname[4] = { 0 };
 	printf("\n Open windows on Public Screen:\n");
-	for (a = 0; a < miscinfo->max_chars; a++) {
-		fputs(hseparator, stdout);
-	}
+	separate(miscinfo->max_chars);
 	printf(" %s:\n", "Flaglegend");
 	for (i = 0; i < sizeof flagarray / sizeof(struct Flagarray); ++i) {
 		strncpy(trflagname, flagarray[i].flagname, 2);
-		for (j = 0; j < strlen(trflagname); j++) {
-			trlflagname[j] = tolower(trflagname[j]);
-		}
-		printf(" %s: %s\n", trlflagname, flagarray[i].flagname);
+		// uncapitalize letters
+		lowflagname(trflagname, strlen(trflagname));
+		printf(" %s: %s\n", trflagname, flagarray[i].flagname);
 	}
-	for (a = 0; a < miscinfo->max_chars; a++) {
-		fputs(hseparator, stdout);
-	}
+	separate(miscinfo->max_chars);
 	printf("\n %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s %s %-*s\n",
 	       miscinfo->printpad, "Number", vseparator,
 	       miscinfo->printpad, "Title", vseparator,
@@ -170,9 +172,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	       miscinfo->printpad, "Pos Y", vseparator,
 	       miscinfo->printpad, "Flag(s)");
 	for (i = 0; i < miscinfo->mwinnr; i++) {
-		for (a = 0; a < miscinfo->max_chars; a++) {
-			fputs(hseparator, stdout);
-		}
+		separate(miscinfo->max_chars);
 		if (strlen(wininfos[i].wintitle) <= miscinfo->printpad) {
 			titlelen = strlen(wininfos[i].wintitle);
 			titlediff = miscinfo->printpad - titlelen;
@@ -198,10 +198,11 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 			     vseparator, miscinfo->printpad, wininfos[i].flag);
 		}
 	}
-	for (a = 0; a < miscinfo->max_chars; a++) {
-		fputs(hseparator, stdout);
-	}
+
+	separate(miscinfo->max_chars);
+
 	printf("\n\n");
+
 	return 0;
 }
 
@@ -240,12 +241,21 @@ void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 	return;
 }
 
+void lowflagname(char *trflagname, int count)
+{
+	int j = 0;
+
+	for (j = 0; j < count; j++) {
+		trflagname[j] = tolower(trflagname[j]);
+	}
+}
+
 void getflags(char *flags, struct Window *window)
 {
 	int i = 0;
-	int j = 0;
+	//int j = 0;
 	char trflagname[4] = { 0 };
-	char trlflagname[4] = { 0 };
+	//char trlflagname[4] = { 0 };
 	char tmpflag[19] = { 0 };
 	char sep[3] = "/";
 
@@ -253,24 +263,21 @@ void getflags(char *flags, struct Window *window)
 		if (window->Flags & flagarray[i].hexflag) {
 			// clear truncate flagname variables
 			memset(trflagname, 0, 4);
-			memset(trlflagname, 0, 4);
 			// copy first to chars to trflagname
 			strncpy(trflagname, flagarray[i].flagname, 2);
 			// ensure NUL terminator
 			trflagname[3] = '\0';
 			// uncapitalize letters
-			for (j = 0; j < strlen(trflagname); j++) {
-				trlflagname[j] = tolower(trflagname[j]);
-			}
+			lowflagname(trflagname, strlen(trflagname));
 			// Create flag strings
 			if (flags[0] == 0) {
-				strncat(trlflagname, sep,
-					strlen(trlflagname) - 1);
-				strcpy(flags, trlflagname);
+				strncat(trflagname, sep,
+					strlen(trflagname) - 1);
+				strcpy(flags, trflagname);
 			} else {
-				strncat(trlflagname, sep,
-					strlen(trlflagname) - 1);
-				strncat(flags, trlflagname,
+				strncat(trflagname, sep,
+					strlen(trflagname) - 1);
+				strncat(flags, trflagname,
 					flag_size - strlen(flags) - 1);
 			}
 		}
