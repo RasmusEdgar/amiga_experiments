@@ -77,6 +77,7 @@ int main(void)
 	// Gather needed info from open windows
 	getwininfos(screen, miscinfo, wininfos);
 	if (!wininfos) {
+		free(miscinfo);
 		free(wininfos);
 		printf("Failed to create window array of structs! Exiting.\n");
 
