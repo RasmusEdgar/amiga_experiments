@@ -53,7 +53,6 @@ int getmiscinfo(struct Screen *screen, struct Miscinfo *miscinfo);
 void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 		 struct Wininfo *wininfos);
 int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo);
-void lowflagname(char *trflagname, int count);
 void getflags(char *flags, struct Window *window);
 void separate(int count);
 
@@ -166,7 +165,7 @@ int printwindows(const struct Wininfo *wininfos, struct Miscinfo *miscinfo)
 	for (i = 0; i < sizeof flagarray / sizeof(struct Flagarray); ++i) {
 		strncpy(trflagname, flagarray[i].flagname, 2);
 		// uncapitalize letters
-		lowflagname(trflagname, strlen(trflagname));
+		strlwr(trflagname);
 		printf(" %s: %s\n", trflagname, flagarray[i].flagname);
 	}
 
@@ -250,21 +249,10 @@ void getwininfos(struct Screen *screen, struct Miscinfo *miscinfo,
 	return;
 }
 
-void lowflagname(char *trflagname, int count)
-{
-	int j = 0;
-
-	for (j = 0; j < count; j++) {
-		trflagname[j] = tolower(trflagname[j]);
-	}
-}
-
 void getflags(char *flags, struct Window *window)
 {
 	int i = 0;
-	//int j = 0;
 	char trflagname[4] = { 0 };
-	//char trlflagname[4] = { 0 };
 	char tmpflag[19] = { 0 };
 	char sep[3] = "/";
 
@@ -277,7 +265,7 @@ void getflags(char *flags, struct Window *window)
 			// ensure NUL terminator
 			trflagname[3] = '\0';
 			// uncapitalize letters
-			lowflagname(trflagname, strlen(trflagname));
+                        strlwr(trflagname);
 			// Create flag strings
 			if (flags[0] == 0) {
 				strncat(trflagname, sep,
