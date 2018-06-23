@@ -146,7 +146,7 @@ void separate(int count)
 	int i = 0;
 
 	for (i = 0; i < count; i++) {
-		fputs(hseparator, stdout);
+                putchar(hseparator[0]);
 	}
 }
 
